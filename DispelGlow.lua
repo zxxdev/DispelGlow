@@ -121,9 +121,14 @@ function ns.UpdateFrame(frame)
     end
 end
 
---- Looks for the spell again and redraws the frames that are on screen.
+--- Looks for the spell again and, only if the answer changed, redraws the
+--- frames that are on screen (a warlock's pet bar updates often).
 function ns.Refresh()
+    local before = ns.spell
     ns.spell = findSpell()
+    if ns.spell == before then
+        return
+    end
     if TargetFrame:IsShown() then
         TargetFrame_UpdateAuras(TargetFrame)
     end
