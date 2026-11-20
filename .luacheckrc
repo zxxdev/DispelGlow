@@ -3,9 +3,8 @@ std = "lua51"
 max_line_length = 120
 exclude_files = { ".luarocks", "lua_modules" }
 
--- What the addon defines for the game.
+-- What the addon defines for the game: only the slash command.
 globals = {
-    "DispelGlow",
     "SLASH_DISPELGLOW1",
     "SLASH_DISPELGLOW2",
     "SlashCmdList",
@@ -28,6 +27,7 @@ read_globals = {
     "TargetFrame_UpdateAuras",
     "UnitBuff",
     "UnitCanAttack",
+    "UnitClass",
     "hooksecurefunc",
 }
 
@@ -36,4 +36,5 @@ files["spec/**/*.lua"] = {
     -- The tests play the game API, so they define it.
     globals = { "_G" },
     allow_defined_top = true,
+    max_line_length = 130,
 }

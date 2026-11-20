@@ -12,103 +12,106 @@ spell that can remove them:
 
 A mage's Spellsteal already has this glow in the game, on exactly the buffs
 that can be stolen, so DispelGlow leaves it to the game. Other classes (and
-characters too low to have the spell) see no glow.
+characters too low to have the spell) see no glow. Only enemies: a friendly
+target or focus never glows.
 
-Only enemies: a friendly target or focus never glows.
+Built to cost as little as possible in the game:
+  - A class that cannot remove Magic hooks nothing and listens to nothing.
+  - The spell is looked for until it is found, then the addon stops looking;
+    a warlock only follows its pet.
+  - Glow textures are looked up once and kept, so redrawing the buffs makes
+    no new strings or tables.
+  - Nothing global except the slash command.
 
 /dispelglow (or /dglow) says whether it is on, and with which spell.
 ]]
 
-DispelGlow = DispelGlow or {}
-local DG = DispelGlow
+local _, ns = ...
 
 -- Spells that remove a Magic effect from an enemy, by the ID of their first
 -- rank. Their names are read from the game, so it works in any language, and
 -- every rank has the same name.
-DG.SPELLS = {
-    { id = 370 }, -- Purge (Shaman)
-    { id = 527 }, -- Dispel Magic (Priest)
-    { id = 32375 }, -- Mass Dispel (Priest)
-    -- Spellsteal (Mage): the game already makes exactly the stealable buffs glow,
-    -- and it knows better than "every Magic buff" (a few cannot be stolen), so
-    -- with it DispelGlow adds nothing.
-    { id = 30449, native = true },
-    { id = 19801 }, -- Tranquilizing Shot (Hunter)
-    { id = 19505, pet = true }, -- Devour Magic (Warlock's Felhunter)
+local PLAYER_SPELLS = {
+    SHAMAN = { 370 }, -- Purge
+    PRIEST = { 527, 32375 }, -- Dispel Magic, Mass Dispel
+    HUNTER = { 19801 }, -- Tranquilizing Shot
 }
+local PET_SPELLS = {
+    WARLOCK = { 19505 }, -- Devour Magic (Felhunter)
+}
+-- The game already draws this class's glow itself.
+local NATIVE = { MAGE = "Spellsteal" }
 
 local BOOK_PLAYER = BOOKTYPE_SPELL or "spell"
 local BOOK_PET = BOOKTYPE_PET or "pet"
 local MAX_BUFFS = MAX_TARGET_BUFFS or 32
-
+local MAGIC = "Magic"
 -- 3.3.5a calls it GetSpellName; later clients renamed it.
-local function spellBookName(index, book)
-    local get = GetSpellBookItemName or GetSpellName
-    return get(index, book)
-end
+local spellBookName = GetSpellBookItemName or GetSpellName
+local UnitBuff, UnitCanAttack, _G = UnitBuff, UnitCanAttack, _G
 
--- Names of every spell in the player's spell book.
-local function playerSpells()
-    local names = {}
-    for tab = 1, GetNumSpellTabs() do
-        local _, _, offset, count = GetSpellTabInfo(tab)
-        for index = offset + 1, offset + count do
-            local name = spellBookName(index, BOOK_PLAYER)
-            if name then
-                names[name] = true
+local wanted -- localized names of the spells this class uses
+local fromPet -- true when they are in the pet's book (warlock)
+local glows = {} -- glows[frame][index]: the frame's glow textures, found once
+
+--- The first wanted name found in a spell book range, or nil.
+local function findIn(book, first, last)
+    for index = first, last do
+        local name = spellBookName(index, book)
+        for i = 1, #wanted do
+            if name == wanted[i] then
+                return name
             end
         end
     end
-    return names
+    return nil
 end
 
--- Names of every spell the current pet has. None without a pet.
-local function petSpells()
-    local names = {}
-    local count = HasPetSpells()
-    for index = 1, count or 0 do
-        local name = spellBookName(index, BOOK_PET)
+--- The spell this character can use right now, or nil.
+local function findSpell()
+    if fromPet then
+        return findIn(BOOK_PET, 1, HasPetSpells() or 0)
+    end
+    for tab = 1, GetNumSpellTabs() do
+        local _, _, offset, count = GetSpellTabInfo(tab)
+        local name = findIn(BOOK_PLAYER, offset + 1, offset + count)
         if name then
-            names[name] = true
+            return name
         end
     end
-    return names
+    return nil
 end
 
---- The name of the first spell this character can use to remove Magic from
---- an enemy, or nil if it has none. The second value is true when the game
---- already draws the glow for that spell itself (Spellsteal).
-function DG.FindDispelSpell()
-    local mine, pets = playerSpells(), petSpells()
-    for _, spell in ipairs(DG.SPELLS) do
-        local name = GetSpellInfo(spell.id)
-        local book = spell.pet and pets or mine
-        if name and book[name] then
-            return name, spell.native == true
-        end
+--- The glow texture of one buff button, looked up only the first time.
+local function glowOf(frame, index)
+    local list = glows[frame]
+    if not list then
+        list = {}
+        glows[frame] = list
     end
-    return nil, false
+    local glow = list[index]
+    if glow == nil then
+        glow = _G[frame:GetName() .. "Buff" .. index .. "Stealable"] or false
+        list[index] = glow
+    end
+    return glow
 end
 
 --- Called after Blizzard has drawn the buffs of the target or focus frame:
---- shows the glow on every Magic buff of an enemy, if this character can
---- remove it. Blizzard hides the glows again on its next redraw.
-function DG.UpdateFrame(frame)
-    if not DG.spell or DG.native or not frame or not frame.unit then
+--- shows the glow on every Magic buff of an enemy. Blizzard hides the glows
+--- again on its next redraw.
+function ns.UpdateFrame(frame)
+    local unit = ns.spell and frame.unit
+    if not unit or not UnitCanAttack("player", unit) then
         return
     end
-    local unit = frame.unit
-    if not UnitCanAttack("player", unit) then
-        return
-    end
-    local prefix = frame:GetName() .. "Buff"
     for index = 1, MAX_BUFFS do
         local name, _, _, _, debuffType = UnitBuff(unit, index)
         if not name then
-            break
+            return
         end
-        if debuffType == "Magic" then
-            local glow = _G[prefix .. index .. "Stealable"]
+        if debuffType == MAGIC then
+            local glow = glowOf(frame, index)
             if glow then
                 glow:Show()
             end
@@ -117,41 +120,74 @@ function DG.UpdateFrame(frame)
 end
 
 --- Looks for the spell again and redraws the frames that are on screen.
-function DG.Refresh()
-    DG.spell, DG.native = DG.FindDispelSpell()
-    for _, frame in ipairs({ TargetFrame, FocusFrame }) do
-        if frame and frame:IsShown() then
-            TargetFrame_UpdateAuras(frame)
-        end
+function ns.Refresh()
+    ns.spell = findSpell()
+    if TargetFrame:IsShown() then
+        TargetFrame_UpdateAuras(TargetFrame)
+    end
+    if FocusFrame and FocusFrame:IsShown() then
+        TargetFrame_UpdateAuras(FocusFrame)
     end
 end
 
--- Hooked after Blizzard's own function, without replacing it, so no other
--- addon or protected part of the interface is affected.
-hooksecurefunc("TargetFrame_UpdateAuras", DG.UpdateFrame)
-
 local events = CreateFrame("Frame")
-events:RegisterEvent("PLAYER_LOGIN")
-events:RegisterEvent("SPELLS_CHANGED") -- a spell learned, or a new rank
-events:RegisterEvent("ACTIVE_TALENT_GROUP_CHANGED") -- dual specialization
-events:RegisterEvent("UNIT_PET") -- a pet summoned or dismissed
-events:RegisterEvent("PET_BAR_UPDATE") -- the pet's spells are ready
-events:SetScript("OnEvent", function(_, event, unit)
-    if event == "UNIT_PET" and unit ~= "player" then
+ns.events = events
+
+events:SetScript("OnEvent", function(self, event, unit)
+    if event == "PLAYER_LOGIN" then
+        self:UnregisterEvent(event)
+        ns.Start(select(2, UnitClass("player")))
+    elseif event == "UNIT_PET" and unit ~= "player" then
         return
+    else
+        ns.Refresh()
+        -- Player spells are never forgotten: once found, stop looking.
+        if ns.spell and not fromPet then
+            self:UnregisterEvent("SPELLS_CHANGED")
+        end
     end
-    DG.Refresh()
 end)
+events:RegisterEvent("PLAYER_LOGIN")
+
+--- Sets the addon up for a class, once, at login.
+function ns.Start(class)
+    ns.class = class
+    local ids = PLAYER_SPELLS[class] or PET_SPELLS[class]
+    if not ids then
+        return -- nothing to do for this class: no hook, no events
+    end
+    fromPet = PET_SPELLS[class] ~= nil
+    wanted = {}
+    for i = 1, #ids do
+        wanted[#wanted + 1] = GetSpellInfo(ids[i])
+    end
+
+    -- After Blizzard's own function, without replacing it, so no other addon
+    -- or protected part of the interface is affected.
+    hooksecurefunc("TargetFrame_UpdateAuras", ns.UpdateFrame)
+    if fromPet then
+        events:RegisterEvent("UNIT_PET") -- the pet summoned or dismissed
+        events:RegisterEvent("PET_BAR_UPDATE") -- its spells are ready
+    else
+        events:RegisterEvent("SPELLS_CHANGED") -- a spell learned
+    end
+    ns.Refresh()
+    if ns.spell and not fromPet then
+        events:UnregisterEvent("SPELLS_CHANGED")
+    end
+end
 
 SLASH_DISPELGLOW1 = "/dispelglow"
 SLASH_DISPELGLOW2 = "/dglow"
 SlashCmdList.DISPELGLOW = function()
-    DG.Refresh()
-    if DG.spell and DG.native then
-        print("|cff7aa5ffDispelGlow|r: " .. DG.spell .. " already has the game's own glow, so nothing is added.")
-    elseif DG.spell then
-        print("|cff7aa5ffDispelGlow|r: on, with " .. DG.spell .. ".")
+    local label = "|cff7aa5ffDispelGlow|r: "
+    if NATIVE[ns.class] then
+        print(label .. "nothing to add, " .. NATIVE[ns.class] .. " already has the game's own glow.")
+    elseif ns.spell then
+        print(label .. "on, with " .. ns.spell .. ".")
+    elseif wanted then
+        print(label .. "off until the spell is learned (or, for a warlock, the Felhunter is out).")
     else
-        print("|cff7aa5ffDispelGlow|r: off. This character has no spell that removes Magic from an enemy.")
+        print(label .. "off. This class has no spell that removes Magic from an enemy.")
     end
 end
