@@ -1,13 +1,14 @@
 # DispelGlow
 
-An addon for the **World of Warcraft 3.3.5a** client (Wrath of the Lich King): the Magic buffs on your enemy target and focus glow when your character can remove them, so you see at a glance what to purge or dispel.
-
-<p align="center">
-  <img src="docs/images/target-frame-glow.png" width="464" alt="An enemy target frame in the game. Below the health and mana bars, the buffs that are Magic effects have a bright border around their icons; a buff that is not Magic has none.">
-</p>
-
 [![CI](https://github.com/zxxdev/DispelGlow/actions/workflows/ci.yml/badge.svg)](https://github.com/zxxdev/DispelGlow/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+Makes the Magic buffs on your enemy target and focus glow when you can purge or dispel them. For the **World of Warcraft 3.3.5a** client (Wrath of the Lich King).
+
+<p align="center">
+  <img src="docs/images/target-frame-glow.png" width="420" alt="An enemy target frame in the game. Below the health and mana bars, the buffs that are Magic effects have a bright border around their icons; a buff that is not Magic has none.">
+  <br><sub>Magic buffs your character can remove glow; the others do not.</sub>
+</p>
 
 ## Why it exists
 
@@ -31,6 +32,13 @@ The glow appears only if your character has one of these spells:
 - A character too low to have the spell sees nothing until it is learned. After a respec or a dual spec swap, it looks again.
 - Spell names are read from the game, so it works with any client language.
 
+## Limitations
+
+- Only the target and focus frames of the game's own interface. Party, arena and other unit frame addons are not covered.
+- It shows what *can* be removed, not what is worth removing.
+- It does not check range, cooldown, mana or rage, or (for Shield Slam) whether a shield is equipped.
+- Tranquilizing Shot also removes Enrage effects; only Magic buffs glow.
+
 ## Install
 
 1. Download this repository (**Code → Download ZIP**) and unzip it.
@@ -38,11 +46,11 @@ The glow appears only if your character has one of these spells:
 3. Copy `DispelGlow.toc` and `DispelGlow.lua` into it. Nothing else is needed.
 4. Start the game and check that **DispelGlow** is enabled in the AddOns list on the character screen.
 
-A ready-to-copy zip will come with the first release.
+A ready-to-copy zip will be attached to the v1.0.0 release.
 
 ## Usage
 
-There is nothing to set up. Type `/dglow` (or `/dispelglow`) to see whether the glow is on:
+There is nothing to set up. Type `/dglow` (or `/dispelglow`) to see whether the glow is on. It answers with one of:
 
 ```text
 DispelGlow: on, with Shield Slam.
@@ -53,25 +61,10 @@ DispelGlow: nothing to add, Spellsteal already has the game's own glow.
 
 ## How it works
 
-```mermaid
-flowchart LR
-    login[Log in] --> can{Can this class<br/>remove Magic?}
-    can -- no --> idle[Nothing hooked,<br/>no events]
-    can -- yes --> book[Find the spell<br/>in the spell book]
-    book --> redraw[Blizzard redraws the<br/>target or focus buffs]
-    redraw --> check{Enemy, and<br/>spell known?}
-    check -- yes --> glow[Show the glow on<br/>every Magic buff]
-```
-
 - **No game function is replaced.** The addon runs after Blizzard's `TargetFrame_UpdateAuras` (with `hooksecurefunc`) and shows the glow texture that the frame already has for each buff. Blizzard hides it again on its next redraw, so nothing is left behind.
 - **The spell is found by name in the spell book.** The names come from the spell IDs of the first rank (`GetSpellInfo`), so every rank and every language matches. For a warlock it looks in the pet's spell book, and follows the pet when it is summoned or dismissed.
 - **Light on the game.** A class that cannot remove Magic hooks nothing and listens to nothing. The others stop looking once the spell is found, until the talents change. Each glow texture is looked up once and kept, so redrawing the buffs creates no new strings or tables. Nothing global except the slash command.
-
-## Quality
-
-- **Tests** ([busted](https://lunarmodules.github.io/busted/)): the game is played by plain Lua tables in [`spec/dispelglow_spec.lua`](spec/dispelglow_spec.lua). They cover each class, the warlock's pet, enemies against friends, Magic against other buffs, respecs, and that classes without a spell hook nothing.
-- **Lint** ([luacheck](https://github.com/lunarmodules/luacheck)): with the list of game functions the addon reads, so a misspelt or accidental global fails the build.
-- Both run in [CI](.github/workflows/ci.yml) on every pull request. They test the addon's logic against a fake game, not the game itself; it has been checked in the game with a warrior.
+- **Privacy.** It saves nothing (no saved variables) and reads only the spell book, the pet's spell book and the buffs of your target and focus.
 
 ## Development
 
@@ -82,6 +75,8 @@ luacheck .   # lint
 busted       # tests
 ```
 
+Files:
+
 ```text
 DispelGlow.toc          what the game loads
 DispelGlow.lua          the whole addon
@@ -89,16 +84,11 @@ spec/                   tests
 .luacheckrc             lint settings and the game API the addon uses
 ```
 
-## Privacy
+### Quality
 
-DispelGlow saves nothing (it has no saved variables) and reads only the spell book, the pet's spell book and the buffs of your target and focus.
-
-## Limitations
-
-- Only the default target and focus frames. Party, arena and other unit frame addons are not covered.
-- It shows what *can* be removed, not what is worth removing.
-- It does not check range, cooldown, mana or rage, or (for Shield Slam) whether a shield is equipped.
-- Tranquilizing Shot also removes Enrage effects; only Magic buffs glow.
+- **Tests** (busted): the game is played by plain Lua tables in [`spec/dispelglow_spec.lua`](spec/dispelglow_spec.lua). They cover each class, the warlock's pet, enemies against friends, Magic against other buffs, respecs, and that classes without a spell hook nothing.
+- **Lint** (luacheck): with the list of game functions the addon reads, so a misspelt or accidental global fails the build.
+- Both run in [CI](.github/workflows/ci.yml) on every pull request. They test the addon's logic against a fake game, not the game itself; it has been checked in the game with a warrior.
 
 ## History
 
