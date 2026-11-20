@@ -66,12 +66,19 @@ local function setupGame(options)
         return buff[1], "rank", "icon", 1, buff[2]
     end
 
-    -- The glow textures, counting how often the addon asks for one.
+    -- The glow textures of the target and focus frames, counting how often
+    -- the addon asks for one.
+    game.focusShown = {}
     local textures = {}
     for index = 1, 32 do
         textures["TargetFrameBuff" .. index .. "Stealable"] = {
             Show = function()
                 game.shown[index] = true
+            end,
+        }
+        textures["FocusFrameBuff" .. index .. "Stealable"] = {
+            Show = function()
+                game.focusShown[index] = true
             end,
         }
     end
@@ -94,8 +101,23 @@ local function setupGame(options)
         end,
     }
     _G.FocusFrame = nil
+    if options.focus then
+        _G.FocusFrame = {
+            unit = "focus",
+            GetName = function()
+                return "FocusFrame"
+            end,
+            IsShown = function()
+                return true
+            end,
+        }
+    end
     _G.TargetFrame_UpdateAuras = function(frame)
-        game.shown = {}
+        if frame == _G.FocusFrame then
+            game.focusShown = {}
+        else
+            game.shown = {}
+        end
         for _, hook in ipairs(game.hooks) do
             hook(frame)
         end
@@ -238,6 +260,26 @@ describe("what glows", function()
     it("only the Magic buffs of an enemy", function()
         local game = setupGame({ class = "PRIEST", spells = { "Dispel Magic" }, buffs = magicBuffs })
         assert.same({ [1] = true, [2] = true }, game.shown)
+    end)
+
+    it("the focus frame too", function()
+        local game = setupGame({ class = "SHAMAN", spells = { "Purge" }, buffs = magicBuffs, focus = true })
+        assert.same({ [1] = true, [2] = true }, game.focusShown)
+    end)
+
+    it("redraws only when the spell changes, not on every pet bar update", function()
+        local game = setupGame({ class = "WARLOCK", spells = {}, buffs = magicBuffs })
+        game.petSpells[1] = "Devour Magic"
+        game.onEvent("UNIT_PET", "player")
+        local redraws = 0
+        game.hooks[#game.hooks + 1] = function()
+            redraws = redraws + 1
+        end
+        for _ = 1, 20 do
+            game.onEvent("PET_BAR_UPDATE")
+        end
+        assert.equal(0, redraws)
+        assert.equal("Devour Magic", game.ns.spell)
     end)
 
     it("nothing on a friendly target", function()
