@@ -11,7 +11,10 @@ spell that can remove them:
   Warlock  Devour Magic, while the Felhunter is out
 
 A mage's Spellsteal already has this glow in the game, on exactly the buffs
-that can be stolen, so DispelGlow leaves it to the game. Other classes (and characters too low to have the spell) see no glow.
+that can be stolen, so DispelGlow leaves it to the game. Other classes (and
+characters too low to have the spell) see no glow.
+
+Only enemies: a friendly target or focus never glows.
 
 /dispelglow (or /dglow) says whether it is on, and with which spell.
 ]]
