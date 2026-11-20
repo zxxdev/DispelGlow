@@ -8,6 +8,7 @@ spell that can remove them:
   Shaman   Purge
   Priest   Dispel Magic, Mass Dispel
   Hunter   Tranquilizing Shot
+  Warrior  Shield Slam
   Warlock  Devour Magic, while the Felhunter is out
 
 A mage's Spellsteal already has this glow in the game, on exactly the buffs
@@ -17,8 +18,8 @@ target or focus never glows.
 
 Built to cost as little as possible in the game:
   - A class that cannot remove Magic hooks nothing and listens to nothing.
-  - The spell is looked for until it is found, then the addon stops looking;
-    a warlock only follows its pet.
+  - The spell is looked for until it is found, then the addon stops looking
+    until the talents change; a warlock only follows its pet.
   - Glow textures are looked up once and kept, so redrawing the buffs makes
     no new strings or tables.
   - Nothing global except the slash command.
@@ -35,6 +36,7 @@ local PLAYER_SPELLS = {
     SHAMAN = { 370 }, -- Purge
     PRIEST = { 527, 32375 }, -- Dispel Magic, Mass Dispel
     HUNTER = { 19801 }, -- Tranquilizing Shot
+    WARRIOR = { 23922 }, -- Shield Slam
 }
 local PET_SPELLS = {
     WARLOCK = { 19505 }, -- Devour Magic (Felhunter)
@@ -139,9 +141,14 @@ events:SetScript("OnEvent", function(self, event, unit)
         ns.Start(select(2, UnitClass("player")))
     elseif event == "UNIT_PET" and unit ~= "player" then
         return
+    elseif event == "PLAYER_TALENT_UPDATE" or event == "ACTIVE_TALENT_GROUP_CHANGED" then
+        -- A respec or a dual spec swap can take a spell away or give it back:
+        -- look now, and again once the game has rebuilt the spell book.
+        ns.Refresh()
+        self:RegisterEvent("SPELLS_CHANGED")
     else
         ns.Refresh()
-        -- Player spells are never forgotten: once found, stop looking.
+        -- Found: stop looking until the talents change.
         if ns.spell and not fromPet then
             self:UnregisterEvent("SPELLS_CHANGED")
         end
@@ -170,6 +177,8 @@ function ns.Start(class)
         events:RegisterEvent("PET_BAR_UPDATE") -- its spells are ready
     else
         events:RegisterEvent("SPELLS_CHANGED") -- a spell learned
+        events:RegisterEvent("PLAYER_TALENT_UPDATE") -- talents changed
+        events:RegisterEvent("ACTIVE_TALENT_GROUP_CHANGED") -- dual spec swap
     end
     ns.Refresh()
     if ns.spell and not fromPet then

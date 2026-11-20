@@ -10,6 +10,7 @@ local SPELL_NAMES = {
     [30449] = "Spellsteal",
     [19801] = "Tranquilizing Shot",
     [19505] = "Devour Magic",
+    [23922] = "Shield Slam",
 }
 
 --- A fresh fake game with the addon loaded and logged in.
@@ -136,18 +137,48 @@ after_each(function()
 end)
 
 describe("which characters can remove Magic", function()
-    it("a warrior cannot: no glow, no hook and no events at all", function()
-        local game = setupGame({ class = "WARRIOR", spells = { "Heroic Strike" }, buffs = magicBuffs })
+    it("a rogue cannot: no glow, no hook and no events at all", function()
+        local game = setupGame({ class = "ROGUE", spells = { "Sinister Strike" }, buffs = magicBuffs })
         assert.is_nil(game.ns.spell)
         assert.same({}, game.hooks)
         assert.same({}, game.events)
     end)
 
-    it("a shaman with Purge can, and stops listening once it is found", function()
+    it("a shaman with Purge can, and stops looking once it is found", function()
         local game = setupGame({ class = "SHAMAN", spells = { "Lightning Bolt", "Purge" }, buffs = magicBuffs })
         assert.equal("Purge", game.ns.spell)
         assert.same({ [1] = true, [2] = true }, game.shown)
-        assert.same({}, game.events)
+        assert.same({ PLAYER_TALENT_UPDATE = true, ACTIVE_TALENT_GROUP_CHANGED = true }, game.events)
+    end)
+
+    it("a warrior with Shield Slam can", function()
+        local game = setupGame({ class = "WARRIOR", spells = { "Heroic Strike", "Shield Slam" }, buffs = magicBuffs })
+        assert.equal("Shield Slam", game.ns.spell)
+        assert.same({ [1] = true, [2] = true }, game.shown)
+    end)
+
+    it("a warrior without Shield Slam waits for it", function()
+        local game = setupGame({ class = "WARRIOR", spells = { "Heroic Strike" }, buffs = magicBuffs })
+        assert.is_nil(game.ns.spell)
+        assert.same({}, game.shown)
+        assert.is_true(game.events.SPELLS_CHANGED)
+    end)
+
+    it("looks again when the talents change, and follows a spell lost or got back", function()
+        local spells = { "Heroic Strike", "Shield Slam" }
+        local game = setupGame({ class = "WARRIOR", spells = spells, buffs = magicBuffs })
+        assert.is_nil(game.events.SPELLS_CHANGED)
+
+        spells[2] = nil -- a spec without it
+        game.onEvent("ACTIVE_TALENT_GROUP_CHANGED")
+        assert.is_nil(game.ns.spell)
+        assert.same({}, game.shown)
+        assert.is_true(game.events.SPELLS_CHANGED)
+
+        spells[2] = "Shield Slam" -- back again
+        game.onEvent("SPELLS_CHANGED")
+        assert.equal("Shield Slam", game.ns.spell)
+        assert.is_nil(game.events.SPELLS_CHANGED)
     end)
 
     it("a low-level shaman keeps listening until Purge is learned", function()
