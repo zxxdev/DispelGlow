@@ -7,7 +7,7 @@
 - Glows only when your character has a spell that removes Magic from an enemy: Purge (shaman), Dispel Magic and Mass Dispel (priest), Tranquilizing Shot (hunter), Shield Slam (warrior), and Devour Magic while the Felhunter is out (warlock). Before, every class saw the glow.
 - A mage is left to the game's own Spellsteal glow, which already marks exactly the buffs that can be stolen.
 - Looks for the spell again after a respec or a dual spec swap.
-- Draws the glow after Blizzard redraws the target and focus buffs, instead of replacing the game's `UnitAura` and `UnitBuff`. Other addons and protected parts of the interface are no longer affected.
+- Draws the glow after Blizzard redraws the target and focus buffs, instead of replacing the game's `UnitAura` and `UnitBuff`, so other addons that call them get the game's own answers again.
 - Classes that cannot remove Magic hook nothing and listen to no events.
 
 ### Added
