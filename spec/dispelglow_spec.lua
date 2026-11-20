@@ -130,9 +130,15 @@ describe("which characters can remove Magic", function()
         assert.equal("Tranquilizing Shot", game.addon.FindDispelSpell())
     end)
 
-    it("a mage with Spellsteal can", function()
-        local game = setupGame({ spells = { "Frostbolt", "Spellsteal" } })
-        assert.equal("Spellsteal", game.addon.FindDispelSpell())
+    it("a mage with Spellsteal can, but the game already draws that glow itself", function()
+        local game = setupGame({ spells = { "Frostbolt", "Spellsteal" }, buffs = magicBuffs })
+        local spell, native = game.addon.FindDispelSpell()
+        assert.equal("Spellsteal", spell)
+        assert.is_true(native)
+
+        -- DispelGlow adds nothing: Blizzard marks exactly the stealable buffs.
+        game.onEvent(nil, "PLAYER_LOGIN")
+        assert.same({}, game.shown)
     end)
 
     it("a warlock can only while the Felhunter is out", function()

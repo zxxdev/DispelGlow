@@ -7,11 +7,11 @@ spell that can remove them:
 
   Shaman   Purge
   Priest   Dispel Magic, Mass Dispel
-  Mage     Spellsteal
   Hunter   Tranquilizing Shot
   Warlock  Devour Magic, while the Felhunter is out
 
-Other classes (and characters too low to have the spell) see no glow.
+A mage's Spellsteal already has this glow in the game, on exactly the buffs
+that can be stolen, so DispelGlow leaves it to the game. Other classes (and characters too low to have the spell) see no glow.
 
 /dispelglow (or /dglow) says whether it is on, and with which spell.
 ]]
@@ -26,7 +26,10 @@ DG.SPELLS = {
     { id = 370 }, -- Purge (Shaman)
     { id = 527 }, -- Dispel Magic (Priest)
     { id = 32375 }, -- Mass Dispel (Priest)
-    { id = 30449 }, -- Spellsteal (Mage)
+    -- Spellsteal (Mage): the game already makes exactly the stealable buffs glow,
+    -- and it knows better than "every Magic buff" (a few cannot be stolen), so
+    -- with it DispelGlow adds nothing.
+    { id = 30449, native = true },
     { id = 19801 }, -- Tranquilizing Shot (Hunter)
     { id = 19505, pet = true }, -- Devour Magic (Warlock's Felhunter)
 }
@@ -70,24 +73,25 @@ local function petSpells()
 end
 
 --- The name of the first spell this character can use to remove Magic from
---- an enemy, or nil if it has none.
+--- an enemy, or nil if it has none. The second value is true when the game
+--- already draws the glow for that spell itself (Spellsteal).
 function DG.FindDispelSpell()
     local mine, pets = playerSpells(), petSpells()
     for _, spell in ipairs(DG.SPELLS) do
         local name = GetSpellInfo(spell.id)
         local book = spell.pet and pets or mine
         if name and book[name] then
-            return name
+            return name, spell.native == true
         end
     end
-    return nil
+    return nil, false
 end
 
 --- Called after Blizzard has drawn the buffs of the target or focus frame:
 --- shows the glow on every Magic buff of an enemy, if this character can
 --- remove it. Blizzard hides the glows again on its next redraw.
 function DG.UpdateFrame(frame)
-    if not DG.spell or not frame or not frame.unit then
+    if not DG.spell or DG.native or not frame or not frame.unit then
         return
     end
     local unit = frame.unit
@@ -111,7 +115,7 @@ end
 
 --- Looks for the spell again and redraws the frames that are on screen.
 function DG.Refresh()
-    DG.spell = DG.FindDispelSpell()
+    DG.spell, DG.native = DG.FindDispelSpell()
     for _, frame in ipairs({ TargetFrame, FocusFrame }) do
         if frame and frame:IsShown() then
             TargetFrame_UpdateAuras(frame)
@@ -140,7 +144,9 @@ SLASH_DISPELGLOW1 = "/dispelglow"
 SLASH_DISPELGLOW2 = "/dglow"
 SlashCmdList.DISPELGLOW = function()
     DG.Refresh()
-    if DG.spell then
+    if DG.spell and DG.native then
+        print("|cff7aa5ffDispelGlow|r: " .. DG.spell .. " already has the game's own glow, so nothing is added.")
+    elseif DG.spell then
         print("|cff7aa5ffDispelGlow|r: on, with " .. DG.spell .. ".")
     else
         print("|cff7aa5ffDispelGlow|r: off. This character has no spell that removes Magic from an enemy.")
