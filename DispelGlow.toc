@@ -1,0 +1,6 @@
+## Interface: 30300
+## Title: DispelGlow
+## Notes: Makes the buffs on your enemy target glow when your character can remove them.
+## Author: zxxdev
+## Version: 1.0.0
+DispelGlow.lua
