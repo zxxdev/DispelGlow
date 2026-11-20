@@ -6,7 +6,7 @@
 Makes the Magic buffs on your enemy target and focus glow when you can purge or dispel them. For the **World of Warcraft 3.3.5a** client (Wrath of the Lich King).
 
 <p align="center">
-  <img src="docs/images/target-frame-glow.png" width="420" alt="An enemy target frame in the game. Below the health and mana bars, the buffs that are Magic effects have a bright border around their icons; a buff that is not Magic has none.">
+  <img src="docs/images/target-frame-glow.png" width="340" alt="An enemy target frame in the game, with its health bar, resource bar and portrait. Below them, the buffs that are Magic effects have a bright yellow border around their icons; the other buffs have none.">
   <br><sub>Magic buffs your character can remove glow; the others do not.</sub>
 </p>
 
