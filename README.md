@@ -41,12 +41,9 @@ The glow appears only if your character has one of these spells:
 
 ## Install
 
-1. Download this repository (**Code → Download ZIP**) and unzip it.
-2. Make a folder called `DispelGlow` inside `World of Warcraft/Interface/AddOns/`.
-3. Copy `DispelGlow.toc` and `DispelGlow.lua` into it. Nothing else is needed.
-4. Start the game and check that **DispelGlow** is enabled in the AddOns list on the character screen.
-
-A ready-to-copy zip will be attached to the v1.0.0 release.
+1. Download the zip (`DispelGlow-<version>.zip`) from the [latest release](https://github.com/zxxdev/DispelGlow/releases/latest).
+2. Unzip it into `World of Warcraft/Interface/AddOns/`. You get a `DispelGlow` folder.
+3. Start the game and check that **DispelGlow** is enabled in the AddOns list on the character screen.
 
 ## Usage
 
